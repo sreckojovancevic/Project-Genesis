@@ -1,122 +1,91 @@
-# Project-Genesis
-SAIP: A KISS-principle cryptographic identity protocol for software agents. A collaborative creation by Srećko Jovančević &amp; Gemini AI.
-
-Može, apsolutno! Čast mi je da budem tvoj "digitalni koautor" na ovome. Ubacićemo sekciju **"Project Genesis"** gde ćemo naglasiti našu saradnju.
-
-Evo predloga za **README.md** koji zvuči profesionalno, tehnički je potkovan (uključuje tvoj *Rolling Key* koncept), i spreman je da privuče pažnju na GitHubu ili IETF-u.
-
----
-
 # SAIP: Signed Agent Identity Protocol (v0.1-alpha)
-**A Cryptographic Framework for Software Agent Accountability and Trust.**
 
-> **Disclaimer:** This protocol is a collaborative creation between **Srećko Jovančević** and **Gemini (AI Assistant)**. It represents a hybrid human-AI approach to solving the "Trust Gap" in the modern web ecosystem.
-
----
-
-## 1. The Problem: The "User-Agent" Lie
-Currently, any software (bot, scraper, browser) can claim to be anything by simply changing a text string in the HTTP header. This leads to:
-* **DDoS & Scraping Abuse:** Difficulty in distinguishing legitimate tools from malicious bots.
-* **IP-based Blocking Collateral:** Blocking an IP often hurts innocent users.
-* **Lack of Accountability:** No way to "revoke" a specific software instance's right to access a resource.
-
-## 2. The Solution: SAIP
-SAIP introduces a **Cryptographic Identity Layer** for software agents. Instead of just "saying" who they are, agents must **prove** it using a hierarchical signing mechanism.
-
-### Key Features:
-* **Opt-in & Backward Compatible:** If a server doesn't support SAIP, it works like a normal legacy request.
-* **Vendor-Verified:** Software creators (Vendors) register with a Trusted Authority.
-* **Instance-Level Rolling Keys:** Each installation of the software generates its own unique, rotating keys to prevent "Reputation Hijacking" by malicious groups.
+> **"Identity is the new perimeter. If you can't prove who you are, you shouldn't be knocking on the door."**
 
 ---
 
-## 3. How It Works (The Protocol Flow)
+### 🚀 Project Genesis: Human-AI Collaboration
+This protocol is a unique architectural experiment born in **Belgrade, Serbia**. It was developed through a real-time, high-intensity brainstorming session between **Srećko Jovančević** (IT Strategy & Systems Expert) and **Gemini** (Google’s AI).
 
-### Step A: The Hierarchy
-1.  **Root Authority:** Validates the Software Vendor (e.g., Srećko's Dev Studio).
-2.  **Vendor Master Key:** Used to sign the software's initial deployment.
-3.  **Instance Key (The "Rolling Key"):** Every specific `.exe` or app instance derives a session key using a Hash-based Message Authentication Code (HMAC).
-
-### Step B: The Signed Request
-Every HTTP request includes the SAIP header:
-`X-SAIP-Identity: <Vendor_ID>:<Instance_ID>:<Timestamp>:<Signature>`
-
-The Signature is calculated as:
-$$Signature = HMAC\_SHA256(Rolling\_Key, Method + URL + Timestamp + Nonce)$$
+**The Vision:** Create a "KISS-compliant" (Keep It Simple, Stupid) cryptographic trust layer for the modern web, moving beyond the easily spoofed `User-Agent` strings of the past.
 
 ---
 
-## 4. Security & Resilience
-* **Anti-Tarnishing (Rolling Keys):** If a group of users tries to "ruin the reputation" of a browser by attacking a site, the server bans the **Instance IDs**, not the **Vendor ID**.
-* **Replay Protection:** The `Timestamp` and `Nonce` ensure that a captured header cannot be reused 10 seconds later.
-* **Privacy:** Supports "Blind Signatures" (future spec) to prove validity without tracking individual user behavior.
+## 1. The Problem: The "User-Agent" Illusion
+In the current HTTP ecosystem, any bot, scraper, or malicious actor can claim to be "Chrome" or "GoogleBot" by simply editing a text string. This leads to:
+* **Anonymous Abuse:** Servers cannot distinguish between a legitimate AI agent and a malicious DDoS bot.
+* **IP-based Inaccuracy:** Blocking IPs often results in "collateral damage," affecting innocent users on shared networks.
+* **Zero Accountability:** There is no mechanism to revoke access for a specific software instance without affecting the entire user base.
+
+## 2. The Solution: SAIP Framework
+SAIP introduces a **Cryptographic Identity Layer** at the application level (HTTP/3 compatible). It doesn't replace existing security; it adds a verifiable "Digital License Plate" to every software agent.
+
+### Key Pillars:
+* **Vendor-Verified:** Developers register with a Trusted Authority to receive a Master Key.
+* **Instance Isolation:** Every installation has a unique ID. If one instance is compromised, the Vendor's reputation remains intact.
+* **RKDF (Rolling Key Derivation Function):** Keys rotate with every request or session, making replay attacks nearly impossible.
 
 ---
 
-## 5. Implementation (KISS Principle)
-Following the **KISS (Keep It Simple, Stupid)** philosophy, SAIP doesn't require a full redesign of the TCP/IP stack. It lives in the Application Layer (HTTP/3), making it easy to implement in:
-* **C# / .NET** (using PKCS11 or TPM)
-* **Python / Go** (as a middleware)
-* **Rust** (for high-performance proxies)
+## 3. Technical Proof of Concept (C#)
 
----
+Following the **KISS Principle**, here is how an agent generates a signed, rolling identity header:
 
-## 6. Project Genesis & Collaboration
-This protocol was born from a series of architectural brainstorming sessions between **Srećko Jovančević** (IT Specialist, Belgrade) and **Gemini** (Google’s AI). It demonstrates how human intuition regarding "Trust and Accountability" can be formalized into technical specifications through AI-assisted collaboration.
-
-## 6.1 COde Snippet(IDEA)
+```csharp
 using System;
 using System.Security.Cryptography;
 using System.Text;
 
-// SAIP: Simple Agent Identity Protocol - POC
-public class SaipClient 
+public class SaipAgent
 {
     private string vendorId = "Srecko_Dev_01";
-    private string instanceId = Guid.NewGuid().ToString().Substring(0, 8);
-    private byte[] rollingKey = Encoding.UTF8.GetBytes("SuperSecretSeed123"); 
+    private string instanceId = "Agent_BG_77"; // Unique to this install
+    private byte[] rollingKey = Encoding.UTF8.GetBytes("Initial_Seed_123"); 
 
-    public string GenerateSaipHeader(string method, string url)
+    public string GetSecureHeader(string method, string url)
     {
         string timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
-        string payload = $"{method}:{url}:{timestamp}:{instanceId}";
+        // Concept: Method + URL + Timestamp + Instance
+        string payload = $"{method.ToUpper()}:{url}:{timestamp}:{instanceId}";
         
         using (var hmac = new HMACSHA256(rollingKey))
         {
             byte[] hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(payload));
             string signature = Convert.ToBase64String(hash);
             
-            // Finalni SAIP format zaglavlja
             return $"SAIP-V1 {vendorId}:{instanceId}:{timestamp}:{signature}";
         }
     }
 }
+```
 
-## 6.2 RKDF Koncept (Rolling Key Derivation)
-The RKDF Logic (Why it's Secure)
+---
 
-    Forward Secrecy: Čak i ako napadač kompromituje jedan Rolling Key, on ne može da sazna Master Vendor Key.
+## 4. The Rolling Key Logic (RKDF)
+To prevent "Reputation Hijacking," SAIP uses a sequence-based rolling key. Even if a malicious actor captures a packet, the key for the *next* request will be different.
 
-    Sequence Enforcement: Server prati sequenceNumber. Ako haker pokuša da pošalje isti ključ dvaput (Replay Attack), server ga odbija jer očekuje sledeći broj u nizu.
+**The Formula:**
+$$RollingKey_{n+1} = HMAC\_SHA256(MasterKey, InstanceID + Sequence_{n})$$
 
-    Isolation: Ako jedna instanca agenta (npr. na zaraženom kompjuteru) krene da divlja, samo njen InstanceID se stavlja na crnu listu. Vendor (Ti) ostaješ čist.
+* **Security:** Provides forward secrecy.
+* **Accountability:** Servers can ban specific `InstanceIDs` without blacklisting the entire software (Vendor).
 
-Šta dalje za tvoj GitHub?
+---
 
-Ovaj kod je "meso" tvog protokola. Ljudi će videti da si razmišljao o:
+## 5. Roadmap & IETF Goals
+- [x] **Phase 1:** Concept & Collaboration (Project Genesis).
+- [ ] **Phase 2:** Reference Implementations (C# and Python).
+- [ ] **Phase 3:** Draft submission to IETF as an HTTP Extension.
+- [ ] **Phase 4:** Community-driven Trusted Authority (TA) specifications.
 
-    Security (HMAC-SHA256)
+## 6. How to Contribute
+We are looking for security researchers, cryptographers, and sysadmins who believe in a more accountable internet. 
 
-    Scalability (Sequence numbers)
+**Join the Genesis.** Let's build a web where "Trust" is a cryptographic certainty, not a pinky-promise.
 
-    Accountability (Instance isolation)
-
-
-
-## 7. Next Steps
-- [ ] Finalize the IETF Internet-Draft (I-D) format.
-- [ ] Create a C# Reference Implementation (Client).
-- [ ] Create a Python/Flask Reference Validator (Server).
+---
+*Created by Srećko Jovančević & Gemini AI (2026)*
+```
 
 ---
 
