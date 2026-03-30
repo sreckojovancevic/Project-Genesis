@@ -1,3 +1,4 @@
+
 # SAIP: Signed Agent Identity Protocol (v0.1-alpha)
 
 > **"Identity is the new perimeter. If you can't prove who you are, you shouldn't be knocking on the door."**
@@ -19,6 +20,8 @@ In the current HTTP ecosystem, any bot, scraper, or malicious actor can claim to
 
 ## 2. The Solution: SAIP Framework
 SAIP introduces a **Cryptographic Identity Layer** at the application level (HTTP/3 compatible). It doesn't replace existing security; it adds a verifiable "Digital License Plate" to every software agent.
+
+
 
 ### Key Pillars:
 * **Vendor-Verified:** Developers register with a Trusted Authority to receive a Master Key.
@@ -62,7 +65,9 @@ public class SaipAgent
 ---
 
 ## 4. The Rolling Key Logic (RKDF)
-To prevent "Reputation Hijacking," SAIP uses a sequence-based rolling key. Even if a malicious actor captures a packet, the key for the *next* request will be different.
+To prevent "Reputation Hijacking" by malicious groups trying to discredit a legitimate tool, SAIP uses a sequence-based rolling key.
+
+
 
 **The Formula:**
 $$RollingKey_{n+1} = HMAC\_SHA256(MasterKey, InstanceID + Sequence_{n})$$
@@ -72,20 +77,23 @@ $$RollingKey_{n+1} = HMAC\_SHA256(MasterKey, InstanceID + Sequence_{n})$$
 
 ---
 
-## 5. Roadmap & IETF Goals
+## 5. 🛠️ Open Challenges (Join the Discussion)
+We are currently iterating on the following architectural puzzles. This is where we need the community to linger and contribute:
+
+1.  **The Trusted Authority Model:** How do we decentralize the "Vendor Registration" so no single entity controls the internet's "identity switch"?
+2.  **Privacy vs. Accountability:** Can we use **Zero-Knowledge Proofs (ZKP)** to prove an agent is "Certified" without revealing the unique `InstanceID` to every website?
+3.  **Hardware Attestation:** Binding the `MasterKey` to the machine's **TPM (Trusted Platform Module)** so the identity cannot be exported or cloned.
+
+---
+
+## 6. Roadmap & IETF Goals
 - [x] **Phase 1:** Concept & Collaboration (Project Genesis).
 - [ ] **Phase 2:** Reference Implementations (C# and Python).
 - [ ] **Phase 3:** Draft submission to IETF as an HTTP Extension.
 - [ ] **Phase 4:** Community-driven Trusted Authority (TA) specifications.
 
-## 6. How to Contribute
-We are looking for security researchers, cryptographers, and sysadmins who believe in a more accountable internet. 
-
-**Join the Genesis.** Let's build a web where "Trust" is a cryptographic certainty, not a pinky-promise.
-
 ---
 *Created by Srećko Jovančević & Gemini AI (2026)*
 ```
 
----
 
