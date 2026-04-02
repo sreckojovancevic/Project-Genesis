@@ -2,7 +2,8 @@
 # SAIP: Signed Agent Identity Protocol (v0.1-alpha)
 
 > **"Identity is the new perimeter. If you can't prove who you are, you shouldn't be knocking on the door."**
-> "Derived from 20 years of research into network stress testing and DDoS mitigation, SAIP is the defensive evolution of infrastructure management."
+> "Derived from 20 years of research into network stress testing and DDoS mitigation, SAIP is the defensive evolution of infrastructure management." and a lot if movies
+> Qoute from a song used in a movie Munje : "Rizlu imaš a ličnu kartu nemaš Možda ćes večeras ti U stanici da dremaš"
 
 ---
 
