@@ -2,6 +2,7 @@
 # SAIP: Signed Agent Identity Protocol (v0.1-alpha)
 
 > **"Identity is the new perimeter. If you can't prove who you are, you shouldn't be knocking on the door."**
+> "Derived from 20 years of research into network stress testing and DDoS mitigation, SAIP is the defensive evolution of infrastructure management."
 
 ---
 
