@@ -25,7 +25,7 @@ The modern web lacks a reliable mechanism for verifying the identity of HTTP use
 * **Protocol-Agnostic:** Applicable to HTTP, SMTP, and other header-based protocols.
 
 ## 4. Protocol Overview
-SAIP defines a cryptographic identity signal transmitted via a single header.
+SAIP defines a cryptographic identity signal transmitted via a single header. SAIP is designed as a supplemental identity signal, not a replacement for existing authentication or bot-detection frameworks (like OAuth2, JWT, or TLS-fingerprinting). It provides an additional layer of verifiable metadata that allows existing web-bot-auth systems to make faster and more accurate trust decisions.
 
 ### 4.1 Header Format
 `SAIP: id="<ID>"; alg="<ALG>"; ts="<TS>"; nonce="<NONCE>"; [pk="<PK>"]; sig="<SIG>"`
