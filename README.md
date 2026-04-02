@@ -92,6 +92,17 @@ We are currently iterating on the following architectural puzzles. This is where
 - [ ] **Phase 3:** Draft submission to IETF as an HTTP Extension.
 - [ ] **Phase 4:** Community-driven Trusted Authority (TA) specifications.
 
+## 🛡️ SAIP Alignment
+This project aligns with the **Signed Agent Identity Protocol (SAIP)**, a lightweight mechanism for verifiable client identity. 
+
+SAIP moves away from easily spoofable User-Agent strings and unreliable IP-based filtering toward a cryptographic, signal-based trust model.
+
+- **Fast Track:** Verified agents receive priority handling.
+- **Fair Limits:** Anonymous traffic is throttled, not blocked.
+- **KISS Design:** Single-header implementation with minimal overhead.
+
+[View the SAIP Specification](docs/SAIP-Alignment-WebBotAuth.md)
+
 ---
 *Created by Srećko Jovančević & Gemini AI (2026)*
 ```
