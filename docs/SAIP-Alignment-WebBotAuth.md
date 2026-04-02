@@ -27,18 +27,33 @@ The modern web lacks a reliable mechanism for verifying the identity of HTTP use
 ## 4. Protocol Overview
 SAIP defines a cryptographic identity signal transmitted via a single header. SAIP is designed as a supplemental identity signal, not a replacement for existing authentication or bot-detection frameworks (like OAuth2, JWT, or TLS-fingerprinting). It provides an additional layer of verifiable metadata that allows existing web-bot-auth systems to make faster and more accurate trust decisions.
 
+## 4. Protocol Overview
+
+SAIP defines a cryptographic identity signal transmitted via a single HTTP‑style header. SAIP is designed as a **supplemental identity signal**, not a replacement for existing authentication or bot‑detection mechanisms (such as OAuth 2.0, JWT, or TLS‑level fingerprinting). It provides an additional layer of verifiable metadata that can be consumed by existing web‑bot‑auth systems and security stacks to make faster, more accurate trust decisions.
+
+In practice, SAIP allows:
+* Application‑level identification of specific software instances (e.g., a backup agent or M365 sync bridge).
+* Flexible key discovery, either via an embedded public key (`pk`) or via external registries based on the `id`.
+* Gradual, opt‑in deployment alongside legacy infrastructure, without altering the semantics of HTTP or SMTP.
+
 ### 4.1 Header Format
+
+The SAIP header is structured as a semicolon‑separated list of parameters:
+
 `SAIP: id="<ID>"; alg="<ALG>"; ts="<TS>"; nonce="<NONCE>"; [pk="<PK>"]; sig="<SIG>"`
 
+Each parameter is encoded as a quoted string, and the order of parameters is not significant for parsing. The header is case‑sensitive for the parameter names, but implementations MUST treat them as case‑sensitive identifiers in their logic.
+
 ### 4.2 Parameters
+
 | Parameter | Type | Required | Description |
 | :--- | :--- | :--- | :--- |
-| **id** | String | **Yes** | Logical agent identifier (e.g., `backup-001`). Allowed: `a-z, 0-9, ., _, -`. **No semicolons (;) or spaces.** Max 128 chars. |
-| **alg** | String | **Yes** | Algorithm identifier. Recommended: `ed25519` (Asymmetric) or `hmac-sha256` (Symmetric). |
-| **ts** | Integer | **Yes** | Unix timestamp (seconds) for freshness validation. |
-| **nonce** | String | **Yes** | Per-request unique value (min 8 chars) to prevent replay attacks. |
-| **sig** | Base64 | **Yes** | Signature computed over the canonical string. |
-| **pk** | Base64URL| No | (Optional) Public Key for immediate/stateless verification. |
+| **id** | String | **Yes** | Logical agent identifier (e.g., `backup-001`, `m365-bridge-002`). Allowed characters: `a-z`, `0-9`, `.`, `_`, `-`. **No semicolons (`;`) or spaces.** Max 128 characters. Used for reputation, logging, and instance‑level rate‑limiting. |
+| **alg** | String | **Yes** | Algorithm identifier. Recommended: `ed25519` (asymmetric) or `hmac-sha256` (symmetric). Implementations SHOULD support at least one of these algorithms. |
+| **ts** | Integer | **Yes** | Unix timestamp (seconds) for freshness validation. Enables servers to reject stale or replayed requests. |
+| **nonce** | String | **Yes** | Per‑request unique value (min 8 characters) to prevent replay attacks. The server MAY track nonces for sensitive endpoints to detect reuse. |
+| **sig** | Base64 | **Yes** | Signature computed over the canonical string defined in Section 5. MUST be encoded as standard Base64 (with optional padding) suitable for HTTP header values. |
+| **pk** | Base64URL | No | (Optional) Public key for immediate or stateless verification. If present, the server MAY use this key to verify the signature without performing an external registry lookup. The key is encoded in Base64URL without padding (`=`). |
 
 ## 5. Canonicalization and Signature
 The signature **MUST** be computed over a canonical string constructed as follows:
