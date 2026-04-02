@@ -16,7 +16,7 @@ This protocol is a unique architectural experiment born in **Belgrade, Serbia**.
 
 ## 1. The Problem: The "User-Agent" Illusion
 In the current HTTP ecosystem, any bot, scraper, or malicious actor can claim to be "Chrome" or "GoogleBot" by simply editing a text string. This leads to:
-* **Anonymous Abuse:** Servers cannot distinguish between a legitimate AI agent and a malicious DDoS bot.
+* **Anonymous Abuse:** Servers cannot distinguish between a legitimate agent and a malicious DDoS bot.
 * **IP-based Inaccuracy:** Blocking IPs often results in "collateral damage," affecting innocent users on shared networks.
 * **Zero Accountability:** There is no mechanism to revoke access for a specific software instance without affecting the entire user base.
 
