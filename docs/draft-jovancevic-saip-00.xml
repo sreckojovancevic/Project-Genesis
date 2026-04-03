@@ -1,13 +1,15 @@
+cat draft-jovancevic-saip-00.xml 
 <?xml version="1.0" encoding="UTF-8"?>
 <rfc xmlns="http://www.rfc-editor.org/rfcxml"
      version="3"
      docName="draft-jovancevic-saip-00"
      category="std"
+     submissionType="independent"
      ipr="trust200902">
 
-  <front>
+  <front xml:lang="en">
     <title>SAIP: Signed Agent Identity Protocol</title>
-
+    
     <author fullname="Srećko Jovančević"
             initials="S."
             surname="Jovančević">
@@ -26,40 +28,29 @@
 
     <date day="3" month="April" year="2026"/>
 
+    <area>Applications and Real-Time</area>
+    <workgroup>web-bot-auth</workgroup>
+
     <abstract>
-      <t>
-        The modern web lacks a reliable mechanism for verifying the identity
-        of HTTP user agents. Existing methods such as User-Agent strings and
-        IP-based attribution are insufficient due to spoofing, shared
-        infrastructure, and automated agents.
-      </t>
-      <t>
-        This document specifies SAIP (Signed Agent Identity Protocol), a
-        lightweight, opt-in mechanism for verifiable client identity at the
-        application layer.
-      </t>
+      <t>The modern web lacks a reliable mechanism for verifying the identity of HTTP user agents. Existing methods such as User-Agent strings and IP-based attribution are insufficient due to spoofing, shared infrastructure, and automated agents.</t>
+      <t>This document specifies SAIP (Signed Agent Identity Protocol), a lightweight, opt-in mechanism for verifiable client identity at the application layer.</t>
     </abstract>
   </front>
 
   <middle>
-
     <section title="Introduction">
-      <t>
-        SAIP introduces a lightweight, opt-in mechanism for verifiable client
-        identity at the application layer, enabling servers to distinguish
-        between legitimate automated traffic and malicious actors.
-      </t>
+      <t>SAIP introduces a lightweight, opt-in mechanism for verifiable client identity at the application layer, enabling servers to distinguish between legitimate automated traffic and malicious actors.</t>
     </section>
 
     <section title="Problem Statement">
-      <t> User-Agent strings are trivial to manipulate. </t>
-      <t> IP-based filtering is unreliable for NAT users and shared infrastructure. </t>
-      <t> Automated systems are frequently blocked by generic security rules. </t>
-      <t> Lack of client-level identity enables abuse and spam. </t>
+      <t>User-Agent strings are trivial to manipulate.</t>
+      <t>IP-based filtering is unreliable for NAT users and shared infrastructure.</t>
+      <t>Automated systems are frequently blocked by generic security rules.</t>
+      <t>Lack of client-level identity enables abuse and spam.</t>
     </section>
 
     <section title="Design Goals">
-      <ul>
+      <ul spacing="normal">
         <li>Simplicity (single-header implementation)</li>
         <li>Opt-in deployment</li>
         <li>Backward compatibility</li>
@@ -68,21 +59,16 @@
     </section>
 
     <section title="Protocol Overview">
-      <t>
-        SAIP defines a cryptographic identity signal transmitted via a single
-        HTTP-style header. It supplements existing authentication systems and
-        enables more accurate trust decisions.
-      </t>
+      <t>SAIP defines a cryptographic identity signal transmitted via a single HTTP-style header. It supplements existing authentication systems and enables more accurate trust decisions.</t>
     </section>
 
     <section title="Header Format">
-      <sourcecode>
-SAIP: id="&lt;ID&gt;"; alg="&lt;ALG&gt;"; ts="&lt;TS&gt;"; nonce="&lt;NONCE&gt;"; [pk="&lt;PK&gt;"]; sig="&lt;SIG&gt;"
-      </sourcecode>
+SAIP: id="<ID>"; alg="<ALG>"; ts="<TS>"; nonce="<NONCE>"; [pk="<PK>"]; sig="<SIG>"
+]]></artwork>
     </section>
 
     <section title="Parameters">
-      <table>
+      <table align="center">
         <thead>
           <tr>
             <th>Param</th>
@@ -133,25 +119,35 @@ SAIP: id="&lt;ID&gt;"; alg="&lt;ALG&gt;"; ts="&lt;TS&gt;"; nonce="&lt;NONCE&gt;"
     </section>
 
     <section title="Canonicalization and Signature">
-      <sourcecode>
-id=&lt;id&gt;;ts=&lt;ts&gt;;nonce=&lt;nonce&gt;;method=&lt;method&gt;;path=&lt;path&gt;
-      </sourcecode>
-      <t>
-        The signature binds identity to a specific request to prevent replay
-        across endpoints.
-      </t>
+id=<id>;ts=<ts>;nonce=<nonce>;method=<method>;path=<path>
+]]></artwork>
+      <t>The signature binds identity to a specific request to prevent replay across endpoints.</t>
     </section>
 
     <section title="Processing Model">
-      <t>
-        The client constructs and signs the canonical string and sends it in the
-        SAIP header. The server reconstructs the string, verifies the signature,
-        and applies policy decisions.
-      </t>
+      <t>The client constructs and signs the canonical string and sends it in the SAIP header. The server reconstructs the string, verifies the signature, and applies policy decisions.</t>
+    </section>
+
+    <section title="Trust & Discovery Model">
+      <t>SAIP supports two primary trust discovery patterns: stateless (key-in-header) and registry-based (using a distributed registry such as consortium blockchain, DNS-based records, or internal pre-shared keys).</t>
+    </section>
+
+    <section title="Economic Traffic Model">
+      <t>SAIP shifts traffic handling from binary filtering to incentive-based classification:</t>
++-------------------+--------------+-----------+-------------------+
+| Agent Category    | SAIP Status  | Trust     | Example Rate      |
+|                   |              | Level     | Limit             |
++-------------------+--------------+-----------+-------------------+
+| Internal Systems  | Verified     | High      | Unrestricted      |
+| Known Partners    | Verified     | Medium    | 100 req/sec       |
+| General Clients   | Verified     | Low       | 10 req/sec        |
+| Anonymous         | None         | Minimal   | 1 req/sec         |
++-------------------+--------------+-----------+-------------------+
+]]></artwork>
     </section>
 
     <section title="Security Considerations">
-      <ul>
+      <ul spacing="normal">
         <li>Timestamp validation (±300 seconds)</li>
         <li>Constant-time signature verification</li>
         <li>Nonce-based replay protection</li>
@@ -160,18 +156,35 @@ id=&lt;id&gt;;ts=&lt;ts&gt;;nonce=&lt;nonce&gt;;method=&lt;method&gt;;path=&lt;p
     </section>
 
     <section title="IANA Considerations">
-      <t>
-        This document requests registration of the "SAIP" HTTP header field.
-      </t>
+      <t>This document requests registration of the "SAIP" HTTP header field in the Permanent Message Header Field Names registry.</t>
     </section>
-
   </middle>
 
   <back>
     <references>
       <name>Normative References</name>
-      <reference anchor="RFC2119" target="https://www.rfc-editor.org/info/rfc2119"/>
-      <reference anchor="RFC8174" target="https://www.rfc-editor.org/info/rfc8174"/>
+      
+      <reference anchor="RFC2119" target="https://www.rfc-editor.org/info/rfc2119">
+        <front>
+          <title>Key words for use in RFCs to Indicate Requirement Levels</title>
+          <author initials="S." surname="Bradner" fullname="S. Bradner"/>
+          <date year="1997" month="March"/>
+        </front>
+        <seriesInfo name="BCP" value="14"/>
+        <seriesInfo name="RFC" value="2119"/>
+        <seriesInfo name="DOI" value="10.17487/RFC2119"/>
+      </reference>
+      
+      <reference anchor="RFC8174" target="https://www.rfc-editor.org/info/rfc8174">
+        <front>
+          <title>Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words</title>
+          <author initials="B." surname="Leiba" fullname="B. Leiba"/>
+          <date year="2017" month="May"/>
+        </front>
+        <seriesInfo name="BCP" value="14"/>
+        <seriesInfo name="RFC" value="8174"/>
+        <seriesInfo name="DOI" value="10.17487/RFC8174"/>
+      </reference>
     </references>
   </back>
 
