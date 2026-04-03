@@ -1,0 +1,38 @@
+<?xml version='1.0' encoding='utf-8'?>
+<rfc xmlns:xi="http://www.w3.org/2001/XInclude" version="3" category="std" consensus="true" submissionType="independent" ipr="trust200902" docName="draft-jovancevic-saip-00" indexInclude="true" sortRefs="true" symRefs="true" tocInclude="true" tocDepth="3" prepTime="2026-04-03T00:00:00Z">
+  <front>
+    <title>SAIP: Signed Agent Identity Protocol</title>
+    <seriesInfo name="Internet-Draft" value="draft-jovancevic-saip-00"/>
+    <author fullname="Srećko Jovančević" surname="Jovančević">
+      <organization>SKGO, IKT Support</organization>
+      <address>
+        <postal>
+          <street>Makedonska 22</street>
+          <city>Belgrade</city>
+          <country>Serbia</country>
+        </postal>
+        <email>srecko.jovancevic@skgo.org</email>
+        <uri>https://github.com/sreckojovancevic</uri>
+      </address>
+    </author>
+    <date year="2026" month="April" day="3"/>
+    <area>Applications and Real-Time</area>
+    <workgroup>web-bot-auth</workgroup>
+    <abstract>
+      <t>The modern web lacks a reliable mechanism for verifying the identity of HTTP user agents... [sažetak]</t>
+    </abstract>
+  </front>
+  <middle>
+    <section anchor="introduction" numbered="true" toc="default">
+      <name>Introduction</name>
+      <t>...</t>
+    </section>
+    <!-- Ostale sekcije -->
+  </middle>
+  <back>
+    <references>
+      <name>References</name>
+      <!-- Reference sekcija -->
+    </references>
+  </back>
+</rfc>
