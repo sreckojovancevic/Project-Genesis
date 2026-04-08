@@ -10,9 +10,9 @@
 
 ## 🚀 Project Genesis: Human-AI Collaboration
 
-This protocol is a unique architectural experiment born in **Belgrade, Serbia**. It was developed through a real-time, high-intensity brainstorming session between **Srećko Jovančević** (IT Strategy & Systems Expert) and **Gemini** (Google's AI).
+This protocol is a unique architectural experiment born in **Belgrade, Serbia**. It was developed through intensive real-time collaboration between **Srećko Jovančević** (IT Strategy & Systems Expert) and **Gemini AI**.
 
-**The Vision:** Create a "KISS-compliant" (Keep It Simple, Stupid) cryptographic trust layer for the modern web, moving beyond the easily spoofed `User-Agent` strings of the past.
+**The Vision:** Create a **KISS-compliant** (Keep It Simple, Stupid) cryptographic trust layer for the modern web, moving beyond the easily spoofed `User-Agent` strings.
 
 SAIP is now a formal IETF individual Internet-Draft:
 **[draft-jovancevic-saip-00](https://datatracker.ietf.org/doc/draft-jovancevic-saip/)**
@@ -21,48 +21,48 @@ SAIP is now a formal IETF individual Internet-Draft:
 
 ## 1. The Problem: The "User-Agent" Illusion
 
-In the current HTTP ecosystem, any bot, scraper, or malicious actor can claim to be "Chrome" or "GoogleBot" by simply editing a text string. This leads to:
+In today's internet, any bot, scraper, or malicious actor can pretend to be "Chrome" or "GoogleBot" by simply changing a text string. This creates serious issues:
 
-- **Anonymous Abuse:** Servers cannot distinguish between a legitimate agent and a malicious DDoS bot.
-- **IP-based Inaccuracy:** Blocking IPs often results in "collateral damage," affecting innocent users on shared networks.
-- **Zero Accountability:** There is no mechanism to revoke access for a specific software instance without affecting the entire user base.
-- **Automation Friction:** Critical systems — backup agents, internal APIs, AI bots — are frequently blocked by generic security rules.
-- **SMTP Trust Gap:** Lack of granular client-level identity allows spam and abuse from compromised local systems.
+- **Anonymous Abuse** — servers cannot reliably distinguish legitimate agents from DDoS bots or scrapers.
+- **IP-based Inaccuracy** — blocking IPs causes collateral damage to innocent users on shared networks.
+- **Zero Accountability** — no way to revoke access for a single compromised instance without affecting everyone.
+- **Automation Friction** — critical systems (backup agents, internal APIs, AI bots, monitoring tools) are often blocked by blunt security rules.
+- **SMTP Trust Gap** — lack of strong client identity allows spam and abuse from compromised servers.
 
-The problem extends far beyond large crawlers. There is a massive volume of traffic from automated agents (backup, monitoring, AI scripts, internal integrations) that currently have no strong identity mechanism.
+The problem goes far beyond large public crawlers. There is massive automated traffic from all kinds of services that currently have no strong, verifiable identity.
 
 ---
 
 ## 2. The Solution: SAIP Framework
 
-SAIP introduces a **Cryptographic Identity Layer** at the application level (HTTP/3 compatible). It doesn't replace existing security — it adds a verifiable **"Digital License Plate"** to every software agent.
+SAIP introduces a **lightweight cryptographic identity layer** for software agents. It does not replace existing security mechanisms — it adds a verifiable **"Digital License Plate"** to every automated client.
 
-**SAIP is protocol-agnostic** — it works as a single header (`SAIP:`) and can be applied to HTTP, SMTP, and other header-based protocols.
+**SAIP is protocol-agnostic** — it works as a single header (`SAIP:`) and can be used with HTTP, SMTP, and other header-based protocols.
 
 ### The DKIM Analogy
 
-If **DKIM** is a cryptographic signature for email *messages* (proving a domain takes responsibility), then **SAIP** is a cryptographic signature for **agents and bots** — a simpler, lighter, and more broadly applicable approach to verifying the identity of automated clients.
+If **DKIM** is a cryptographic signature for *email messages* (proving a domain takes responsibility for the content), then **SAIP** is a cryptographic signature for **agents and bots** — a simpler, lighter, and more broadly applicable approach to verifying the identity of automated clients.
 
 ### Relationship to RFC 9421 (HTTP Message Signatures)
 
-RFC 9421 signs **what an agent says** — the HTTP message, headers, and body.
+RFC 9421 signs **what the agent says** — the HTTP message, headers, and body.
 SAIP establishes **who is knocking** — the identity of the agent itself.
 
-These are complementary, not competing:
+These are **complementary**, not competing:
 
 > RFC 9421 is the **notarized statement**.
 > SAIP is the **identity card**.
 
-SAIP operates as the missing identity layer *beneath* RFC 9421 — first establishing who the agent is, then letting RFC 9421 verify message integrity. No conflict, full interoperability.
+SAIP acts as the missing identity layer beneath RFC 9421 — first prove who you are, then prove what you are saying. No conflict, full interoperability.
 
 ### Key Pillars
 
-- **Vendor-Verified:** Developers register with a Trusted Authority to receive a Master Key.
-- **Instance Isolation:** Every installation has a unique ID. If one instance is compromised, the Vendor's reputation remains intact.
-- **RKDF (Rolling Key Derivation Function):** Keys rotate with every request or session, making replay attacks nearly impossible.
-- **Wide Applicability:** Usable for any service instance — backup agents, AI agents, monitoring systems, internal integrations, desktop/mobile clients, SMTP servers, and more.
-- **Early Verification:** Checks can happen before request processing or data transfer begins.
-- **Economic Model:** Verified agents receive priority handling; anonymous traffic is throttled, not blocked.
+- **Vendor-Verified** — Developers register with a Trusted Authority to receive a Master Key.
+- **Instance Isolation** — Every installation gets a unique Instance ID. One compromised instance can be revoked without damaging the entire vendor.
+- **RKDF (Rolling Key Derivation Function)** — Keys rotate per request, providing forward secrecy and strong replay protection.
+- **Wide Applicability** — Usable for any service instance: backup agents, AI agents, monitoring systems, internal integrations, desktop/mobile clients, SMTP servers, and more.
+- **Early Verification** — Validation can happen before heavy request processing or data transfer begins.
+- **Economic Model** — Verified agents receive priority and better rate limits; anonymous traffic is throttled, not blindly blocked.
 
 ---
 
