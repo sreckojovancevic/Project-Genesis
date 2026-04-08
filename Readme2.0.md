@@ -186,6 +186,106 @@ If client and server fall out of sync beyond the window (e.g. extended outage), 
 | Window exceeded | Trigger graceful resync via Master Key |
 | Instance compromised | Vendor revokes `InstanceID` — resync impossible for attacker |
 
+### RKDF Renegotiation — Staying Alive in the Real World
+
+Without a renegotiation mechanism, SAIP would be too brittle for real network conditions — one prolonged outage or system restore could permanently desync a legitimate client. SAIP defines four mechanisms that together cover every real-world failure scenario, while remaining strictly KISS-compliant.
+
+---
+
+**1. Sequence Drift — Look-ahead Window (Silent Resync)**
+
+The most common problem in rolling key systems: the client sends Request N, the server never receives it, and the client advances to N+1. The server expects N, receives N+1, and raises an error.
+
+SAIP solves this with a configurable **look-ahead window**. The server silently accepts any sequence within the window and jumps forward to the received position, invalidating all previous sequences:
+
+```
+Default window: 5 sequences
+Maximum window: 10 sequences (deployment-configurable)
+```
+
+If the server receives `Sequence N+3`, it silently advances to N+3 and closes N, N+1, N+2. No error, no interruption — automatic, transparent resynchronization.
+
+> Note: The window size is a security trade-off. A larger window increases replay attack tolerance but also increases the attack surface. Deployments SHOULD use the smallest window that fits their network conditions.
+
+---
+
+**2. Full Renegotiation — Hard Reset via RE**
+
+When a client completely loses its sequence base (e.g. restore from old backup, severe state corruption, or system reinstall), a full renegotiation is required to obtain a new RKDF seed — without re-registering the entire Vendor ID.
+
+**Only the Registration Entity (RE) may authorize a Full Renegotiation** — never an endpoint server. This boundary is a hard security requirement.
+
+The process:
+
+```
+1. Client sends a signed Renegotiation Request to RE:
+   - Signed with previous Master Key (time-limited validity window)
+   - OR with Hardware Attestation proof (TPM quote)
+   - Includes: InstanceID, reason, timestamp, nonce
+
+2. RE validates:
+   - Master Key signature valid and within time window?
+   - InstanceID not revoked?
+   - No excessive renegotiation attempts? (rate limit: max 3/24h)
+   - TPM quote consistent with registered hardware? (if available)
+
+3. RE issues a new RKDF seed + starting Sequence number
+   → Client resumes from new anchor point
+   → Old sequence range is permanently closed
+   → Vendor receives notification of renegotiation event
+```
+
+> The time-limited validity window on the previous Master Key is critical — it prevents a compromised old key from being used indefinitely to trigger renegotiations.
+
+---
+
+**3. Graceful Key Rotation — Overlap Period**
+
+When a Master Key expires (e.g. after its defined validity period), SAIP supports a smooth transition via an **overlap period** — analogous to certificate overlap in PKI systems.
+
+The client signals the key transition in the SAIP header:
+
+```
+SAIP-Key-Version: 2; fallback=1; fallback-expires="<unix_timestamp>"
+```
+
+During the overlap period:
+- Servers that have already received the new key from the RE accept `Key-Version: 2`
+- Servers that have not yet updated accept `Key-Version: 1` (fallback) until `fallback-expires`
+- After expiry, the old key version is rejected everywhere
+
+This ensures **zero-downtime key rotation** across a distributed ecosystem where not all servers update simultaneously.
+
+---
+
+**4. Forward-Only Constraint — Renegotiation Attack Prevention**
+
+Renegotiation mechanisms are a known attack surface. Adversaries exploit them to force **downgrade attacks** — pushing a server back to a weaker algorithm or an older sequence that can be replayed.
+
+SAIP Renegotiation is **strictly forward-only**:
+
+- No sequence rollback — the sequence number MUST always increase
+- No algorithm downgrade — `alg` MUST NOT change to a weaker value during renegotiation
+- No RE bypass — Full Renegotiation MUST be authorized by an RE, never by an endpoint server
+- Any renegotiation attempt that violates these constraints MUST be rejected and logged
+
+> *"SAIP Renegotiation is strictly forward-only. No sequence rollback, no algorithm downgrade, no RE-bypass. Any renegotiation attempt that violates these constraints MUST be rejected and logged."*
+
+The use of **MUST** here is intentional and follows RFC 2119 conventions — these are non-negotiable requirements, not recommendations.
+
+---
+
+### Complete Resilience Model
+
+| Scenario | Mechanism | RE Involved? |
+|----------|-----------|--------------|
+| Lost packet / timeout | Look-ahead Window (silent) | No |
+| Extended network outage | Look-ahead Window + ACK retry | No |
+| System restart (state intact) | ACK-based resync | No |
+| Hard state loss / backup restore | Full Renegotiation | Yes |
+| Master Key expiry | Graceful Rotation + Overlap | Yes |
+| Downgrade / replay attack | Forward-only constraint + MUST reject | Blocked |
+
 ---
 
 ## 6. Trust & Discovery Model — Decentralized by Design
