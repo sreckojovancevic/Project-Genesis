@@ -250,7 +250,141 @@ No collateral damage. No blunt instruments. Precise, revocable, cryptographicall
 
 ---
 
-## 11. Open Challenges — Join the Discussion
+## 11. SAIP as a Universal Wrap / Middleware Layer
+
+SAIP is deliberately designed as a **thin, non-intrusive cryptographic wrapper** (middleware layer) that can be added on top of existing protocols without modifying their core specifications.
+
+It does **not** replace, extend, or break HTTP, SMTP, or any other protocol. It simply adds one additional identity signal that supporting servers can check early in the connection lifecycle.
+
+### Why This Approach Matters
+
+- **Zero protocol changes** — Legacy servers that do not understand SAIP will simply ignore the SAIP line and continue normally.
+- **Early verification** — Rejection can happen before expensive operations (data transfer, full message processing, spam filtering, etc.).
+- **Easy adoption** — SAIP can be implemented as a lightweight middleware, plugin, or policy service in popular software (Nginx, Caddy, Postfix, Haraka, Stalwart, Exim, etc.).
+- **Universal applicability** — The same SAIP header format and logic works across HTTP, SMTP, and other header-capable protocols.
+
+SAIP acts as the missing **"who is calling?"** layer, while all your existing security mechanisms (OAuth, mTLS, RFC 9421, DKIM, SPF, DMARC, rate limiting, etc.) continue to work unchanged.
+
+### Implementation Model
+
+SAIP is inserted at the earliest practical point after the initial handshake:
+
+- **HTTP** → as a standard request header (`SAIP: ...`)
+- **SMTP** → as an additional line sent immediately after the EHLO/HELO response (before MAIL FROM)
+- **Other protocols** → wherever a custom header or command line can be added without breaking compatibility
+
+---
+
+## 12. SMTP Integration — Early Rejection at EHLO Phase
+
+Here is a complete example of how SAIP works with SMTP **without touching the SMTP protocol itself**:
+
+```
+Client: EHLO backup-agent.example.com
+Server: 250-server.example.com Hello backup-agent.example.com
+        250-SIZE 52428800
+        250-8BITMIME
+        250-ENHANCEDSTATUSCODES
+        250-PIPELINING
+        250-CHUNKING
+        250 STARTTLS
+
+Client: SAIP: id="Srecko_Backup_Agent_01"; alg="ed25519"; ts="1744101234"; nonce="7f3k9p2m"; pk="base64publickey..."; sig="base64signature..."
+
+Server: (SAIP middleware checks signature, timestamp, nonce, and registry or pk)
+
+        If invalid:
+        550 5.7.1 SAIP verification failed: Invalid agent identity
+
+        If valid:
+        (continue normally)
+
+Client: MAIL FROM:<backup@company.com>
+...
+```
+
+**Key points:**
+- The SAIP line is sent **after** the server replies to EHLO.
+- No new SMTP command or extension is required.
+- If the server does not support SAIP, it will treat the line as an unknown command and continue — or ignore it. For strict environments, a future `SAIP` SMTP capability advertised in the EHLO response is recommended.
+- Supporting servers can reject very early, saving resources.
+
+**Recommended rejection message:**
+`550 5.7.1 SAIP verification failed: Invalid or missing agent identity`
+
+---
+
+## 13. Canonical String Definition — Protocol-Agnostic
+
+To ensure consistent signing and prevent replay attacks across different protocols, SAIP uses a protocol-specific **canonical string**.
+
+**Base format (always included):**
+```
+id=<id>;ts=<ts>;nonce=<nonce>
+```
+
+**Protocol-specific extensions:**
+
+- **For HTTP / HTTP/3:**
+  ```
+  id=<id>;ts=<ts>;nonce=<nonce>;method=<METHOD>;path=<path>
+  ```
+  *(e.g. `method=GET;path=/api/backup`)*
+
+- **For SMTP:**
+  ```
+  id=<id>;ts=<ts>;nonce=<nonce>;phase=EHLO;helo=<helo_name>
+  ```
+  *(e.g. `phase=EHLO;helo=backup-agent.example.com`)*
+
+- **For other protocols:**
+  Use a short, meaningful descriptor:
+  - `phase=CONNECT` (for generic TCP / custom protocols)
+  - `command=AUTH` (when used in authentication phase)
+
+The exact canonical string used for signing **must** be clearly documented by the implementing software. This design keeps SAIP simple while binding the signature to the specific context of the request.
+
+---
+
+## 14. Middleware / Policy Service — Pseudocode
+
+A simple example of how a SAIP middleware or policy service works in practice:
+
+```python
+def saip_middleware(request_or_command):
+    if not has_saip_header(request_or_command):
+        # Optional: allow with lower priority / throttle
+        # or reject in strict mode
+        return "allow_anonymous"
+
+    saip = parse_saip_header(request_or_command)
+
+    if not is_fresh(saip.ts) or not is_unique_nonce(saip.nonce):
+        return "550 SAIP verification failed: Replay or stale signature"
+
+    if saip.pk:  # stateless mode
+        valid = verify_signature(saip.canonical_string, saip.sig, saip.pk, saip.alg)
+    else:
+        pubkey = lookup_in_saip_registry(saip.id)  # fast cached lookup
+        valid = verify_signature(saip.canonical_string, saip.sig, pubkey, saip.alg)
+
+    if not valid:
+        return "550 5.7.1 SAIP verification failed: Invalid agent identity"
+
+    # Attach verified identity to session for logging / prioritization
+    mark_session_as_verified(saip.vendor_id, saip.bot_type, saip.instance_id)
+
+    return "continue"
+```
+
+This logic can be implemented as:
+- Nginx / Caddy / Apache module (HTTP)
+- Postfix policy daemon or Haraka / Stalwart / Exim plugin (SMTP)
+- Custom proxy or sidecar service
+
+---
+
+## 15. Open Challenges — Join the Discussion
 
 We are actively iterating on these architectural problems and welcome community input:
 
@@ -260,7 +394,7 @@ We are actively iterating on these architectural problems and welcome community 
 
 ---
 
-## 12. Roadmap & IETF Goals
+## 16. Roadmap & IETF Goals
 
 | Phase   | Description                                                            | Status          |
 |---------|------------------------------------------------------------------------|-----------------|
@@ -274,7 +408,7 @@ IANA Registration requested for `SAIP` HTTP header field.
 
 ---
 
-## 13. Conclusion
+## 17. Conclusion
 
 SAIP does not enforce trust — **it enables it**.
 
