@@ -39,6 +39,22 @@ SAIP introduces a **Cryptographic Identity Layer** at the application level (HTT
 
 **SAIP is protocol-agnostic** — it works as a single header (`SAIP:`) and can be applied to HTTP, SMTP, and other header-based protocols.
 
+### The DKIM Analogy
+
+If **DKIM** is a cryptographic signature for email *messages* (proving a domain takes responsibility), then **SAIP** is a cryptographic signature for **agents and bots** — a simpler, lighter, and more broadly applicable approach to verifying the identity of automated clients.
+
+### Relationship to RFC 9421 (HTTP Message Signatures)
+
+RFC 9421 signs **what an agent says** — the HTTP message, headers, and body.
+SAIP establishes **who is knocking** — the identity of the agent itself.
+
+These are complementary, not competing:
+
+> RFC 9421 is the **notarized statement**.
+> SAIP is the **identity card**.
+
+SAIP operates as the missing identity layer *beneath* RFC 9421 — first establishing who the agent is, then letting RFC 9421 verify message integrity. No conflict, full interoperability.
+
 ### Key Pillars
 
 - **Vendor-Verified:** Developers register with a Trusted Authority to receive a Master Key.
@@ -47,10 +63,6 @@ SAIP introduces a **Cryptographic Identity Layer** at the application level (HTT
 - **Wide Applicability:** Usable for any service instance — backup agents, AI agents, monitoring systems, internal integrations, desktop/mobile clients, SMTP servers, and more.
 - **Early Verification:** Checks can happen before request processing or data transfer begins.
 - **Economic Model:** Verified agents receive priority handling; anonymous traffic is throttled, not blocked.
-
-### The DKIM Analogy
-
-If **DKIM** is a cryptographic signature for email *messages* (proving a domain takes responsibility), then **SAIP** is a cryptographic signature for **agents and bots** — a simpler, lighter, and more broadly applicable approach to verifying the identity of automated clients.
 
 ---
 
@@ -62,14 +74,14 @@ SAIP defines a cryptographic identity signal transmitted via a single HTTP-style
 SAIP: id="<ID>"; alg="<ALG>"; ts="<TS>"; nonce="<NONCE>"; [pk="<PK>"]; sig="<SIG>"
 ```
 
-| Param | Type      | Required | Description                                              |
-|-------|-----------|----------|----------------------------------------------------------|
-| id    | String    | Yes      | Logical agent identifier. Max 128 chars: a-z, 0-9, ., _, - |
-| alg   | String    | Yes      | Algorithm: `ed25519` or `hmac-sha256`                   |
-| ts    | Integer   | Yes      | Unix timestamp for freshness validation                  |
-| nonce | String    | Yes      | Per-request unique value (min 8 chars) to prevent replay |
-| sig   | Base64    | Yes      | Signature over the canonical string                      |
-| pk    | Base64URL | No       | Optional public key for stateless verification           |
+| Param | Type      | Required | Description                                                   |
+|-------|-----------|----------|---------------------------------------------------------------|
+| id    | String    | Yes      | Logical agent identifier. Max 128 chars: a-z, 0-9, ., _, -  |
+| alg   | String    | Yes      | Algorithm: `ed25519` or `hmac-sha256`                        |
+| ts    | Integer   | Yes      | Unix timestamp for freshness validation                       |
+| nonce | String    | Yes      | Per-request unique value (min 8 chars) to prevent replay      |
+| sig   | Base64    | Yes      | Signature over the canonical string                           |
+| pk    | Base64URL | No       | Optional public key for stateless verification                |
 
 **Canonical string (what is signed):**
 ```
@@ -126,21 +138,28 @@ $$RollingKey_{n+1} = HMAC\_SHA256(MasterKey,\ InstanceID + Sequence_n)$$
 
 ---
 
-## 6. Trust & Discovery Model
+## 6. Trust & Discovery Model — Decentralized by Design
 
 SAIP supports two primary trust discovery patterns:
 
 **Stateless (Key-in-Header):**
-If `pk` is provided, the server verifies the signature immediately — no external lookup required. Ideal for small entities and internal systems.
+If `pk` is provided, the server verifies the signature immediately — no external lookup required. Ideal for small entities, internal systems, and early adopters. Zero dependency on any registry.
 
 **Registry-Based:**
-The server uses `id` to look up the public key via a distributed registry. SAIP uses a model inspired by **DNS root servers**:
+The server uses `id` to look up the public key via a distributed registry. Here SAIP makes a deliberate and fundamental architectural choice:
 
-- Any qualified organization (Microsoft, Amazon, Google, Cloudflare, GoDaddy, etc.) can become a **Registration Entity (RE)**.
-- RE metadata is replicated via a distributed ledger (blockchain-like mechanism — used purely as a synchronization layer, not a financial system).
-- **Dynamic rotation:** The top 5–7 strongest REs are active replicators. The system self-balances — new dominant players enter, the weakest exit.
+> **No single entity should be the gatekeeper for agent identity on the web.**
 
-This enables true decentralization and broad participation from major players without any single entity owning the "identity switch."
+SAIP's registry model is inspired by **DNS root servers** — a small number of logical authorities with massive geographic and organizational distribution, where no single participant owns or controls the whole.
+
+The largest, most trusted infrastructure players become **Registration Entities (REs)** — not owners, but **equal participants**:
+
+- Organizations such as Google, Microsoft, Amazon, and Cloudflare are natural RE candidates — they already operate global infrastructure at the required scale and are trusted by the wider internet ecosystem.
+- RE metadata is synchronized via a **distributed registry protocol** — no central owner, no single point of failure, no single point of control.
+- **Dynamic balancing:** The top 5–7 most active REs are primary replicators. As the ecosystem evolves, new strong players enter and the weakest rotate out — automatically, based on participation and reliability.
+- Any entity, regardless of size, can participate via the **stateless `pk=` mode** without joining any registry at all.
+
+This architecture ensures the web's agent identity infrastructure remains **open, interoperable, and resistant to capture** — by any single company, regardless of market position or size.
 
 ---
 
@@ -161,19 +180,52 @@ This is a natural upgrade to the SPF + DKIM + DMARC chain, adding early protecti
 
 ## 8. Security Considerations
 
-| Concern                 | SAIP Mitigation                                                              |
-|-------------------------|------------------------------------------------------------------------------|
-| Replay attacks          | Nonce per request + timestamp window (±300s)                                |
-| Timing attacks          | Signature verification MUST use constant-time comparison                    |
-| Header injection        | Restricted `id` character set (a-z, 0-9, `.`, `_`, `-`)                    |
-| Key theft / cloning     | TPM hardware attestation (future work)                                      |
-| Reputation hijacking    | Instance-level RKDF — revoke one instance without affecting the vendor      |
+| Concern               | SAIP Mitigation                                                         |
+|-----------------------|-------------------------------------------------------------------------|
+| Replay attacks        | Nonce per request + timestamp window (±300s)                           |
+| Timing attacks        | Signature verification MUST use constant-time comparison               |
+| Header injection      | Restricted `id` character set (a-z, 0-9, `.`, `_`, `-`)               |
+| Key theft / cloning   | TPM hardware attestation (future work)                                 |
+| Reputation hijacking  | Instance-level RKDF — revoke one instance without affecting the vendor |
 
 ---
 
-## 9. Economic Traffic Model
+## 9. Granular Policy Engine — Three-Level Identity Control
 
-SAIP shifts traffic handling from binary filtering to **incentive-based classification**:
+This is the core operational advantage of SAIP. Because every request carries a cryptographically verified identity at three distinct levels, the receiving server's policy engine can act with **surgical precision** at any level — independently or in combination.
+
+### The Identity Hierarchy
+
+```
+Vendor (e.g. OpenAI)
+  └── Bot Type (e.g. GPTBot)
+        └── Instance (e.g. Agent_NYC_042)  ← SAIP verifies HERE
+```
+
+### Policy Actions — At Any Level
+
+The server can **block**, **throttle**, or **shape** traffic at whichever level makes sense:
+
+| Target Level | Example Action                                                              |
+|--------------|-----------------------------------------------------------------------------|
+| **Instance** | Block only `Agent_NYC_042` — all other OpenAI instances continue normally  |
+| **Bot Type** | Throttle all `GPTBot` instances to 5 req/sec — other OpenAI bots unaffected|
+| **Vendor**   | Degrade all OpenAI traffic to minimal trust — full vendor-level action      |
+| **Combined** | Vendor OK + Bot Type OK + one specific instance blocked                     |
+
+This is **firewall logic applied to cryptographic identity** — not IP addresses, not User-Agent strings, but verified identities at three levels of granularity.
+
+### Why This Matters
+
+Today, if one bot misbehaves, the only options are: do nothing, block the IP (collateral damage), or block the entire User-Agent string (blocks all legitimate instances too). SAIP eliminates this false choice:
+
+- One compromised or misbehaving instance → **block that instance only**
+- A bot type that systematically ignores rate limits → **throttle that bot type only**
+- A vendor whose entire fleet starts acting aggressively → **degrade the whole vendor**
+
+No collateral damage. No blunt instruments. Precise, revocable, cryptographically grounded control.
+
+### Economic Traffic Classification
 
 | Agent Category   | SAIP Status | Trust Level | Example Rate Limit |
 |------------------|-------------|-------------|-------------------|
@@ -210,12 +262,12 @@ We are actively iterating on these architectural problems and welcome community 
 
 ## 12. Roadmap & IETF Goals
 
-| Phase   | Description                                                                 | Status       |
-|---------|-----------------------------------------------------------------------------|--------------|
-| Phase 1 | Concept & Human-AI Collaboration (Project Genesis)                          | ✅ Complete  |
-| Phase 2 | Reference Implementations (C# + Python) + SMTP module                      | 🔄 In Progress |
-| Phase 3 | Active participation in IETF **web-bot-auth** Working Group                 | 🔄 In Progress |
-| Phase 4 | Community-driven RE ecosystem & broad adoption                              | 📋 Planned   |
+| Phase   | Description                                                            | Status          |
+|---------|------------------------------------------------------------------------|-----------------|
+| Phase 1 | Concept & Human-AI Collaboration (Project Genesis)                     | ✅ Complete     |
+| Phase 2 | Reference Implementations (C# + Python) + SMTP module                 | 🔄 In Progress  |
+| Phase 3 | Active participation in IETF **web-bot-auth** Working Group            | 🔄 In Progress  |
+| Phase 4 | Community-driven RE ecosystem & broad adoption                         | 📋 Planned      |
 
 IETF Draft: **[draft-jovancevic-saip-00](https://datatracker.ietf.org/doc/draft-jovancevic-saip/)**
 IANA Registration requested for `SAIP` HTTP header field.
