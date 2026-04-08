@@ -136,6 +136,56 @@ $$RollingKey_{n+1} = HMAC\_SHA256(MasterKey,\ InstanceID + Sequence_n)$$
 - **Forward Secrecy:** Compromising one key does not expose past or future keys.
 - **Fine-Grained Accountability:** Servers can ban a specific `InstanceID` without blacklisting the entire vendor or software product.
 
+### RKDF Granularity — Per-Request Completion
+
+SAIP uses **per-request completion** as the key rotation trigger — meaning the Rolling Key advances once per completed request/response cycle. This gives the strongest possible protection: a stolen key is valid for at most one in-flight request.
+
+However, per-request rotation introduces a **sequence desync risk** when network failures occur:
+
+```
+Client sends Request N with Key_N
+→ Server receives, verifies, derives Key_(N+1)
+→ Response is lost (network failure)
+→ Client does not know if server received it
+→ Client retries with Key_N
+→ Server expects Key_(N+1) → FAIL
+```
+
+### RKDF Resilience Model
+
+To handle this gracefully without sacrificing security, SAIP uses a three-layer approach:
+
+**1. Sequence Window**
+The server accepts a small window of valid keys rather than a single expected key:
+
+```
+Accepts: Key_N, Key_(N+1), Key_(N+2)  ← window of 3
+```
+
+If a client retries with `Key_N` due to a lost response, the server still accepts it. Once `Key_(N+2)` is received and confirmed, the window advances and `Key_N` is no longer valid. This is analogous to TCP sequence number handling.
+
+**2. Explicit ACK in Response Header**
+The server includes the confirmed sequence number in every response:
+
+```
+SAIP-Next-Seq: 47
+```
+
+The client knows exactly where the server is. If no ACK is received — the client retries with the same key. No guessing, no desync.
+
+**3. Graceful Resync**
+If client and server fall out of sync beyond the window (e.g. extended outage), a short re-authentication using the Master Key is performed to re-establish the current Sequence number. This is the **only** moment the Master Key is used directly — and it should be a rare event.
+
+### Key Lifecycle Summary
+
+| Event | Action |
+|-------|--------|
+| Request sent | Sign with `Key_N` |
+| Response received (ACK) | Derive and store `Key_(N+1)`, destroy `Key_N` |
+| Response lost (retry) | Resend with same `Key_N` — window accepts it |
+| Window exceeded | Trigger graceful resync via Master Key |
+| Instance compromised | Vendor revokes `InstanceID` — resync impossible for attacker |
+
 ---
 
 ## 6. Trust & Discovery Model — Decentralized by Design
@@ -420,7 +470,7 @@ Servers are encouraged to report suspicious behavior (unexpected nonce patterns,
 
 | Threat | Mitigation |
 |--------|------------|
-| Stolen Instance Key | Short-lived RKDF keys — stolen key expires almost immediately |
+| Stolen Instance Key | Per-request RKDF — stolen key valid for at most one in-flight request |
 | Cloned Instance ID | TPM/hardware binding — ID cannot be exported |
 | Compromised server | Fast revocation — only that instance is affected |
 | Replay attack | Nonce + timestamp window (±300s) |
