@@ -384,17 +384,108 @@ This logic can be implemented as:
 
 ---
 
-## 15. Open Challenges — Join the Discussion
+## 15. Compromise Mitigation & Revocation
 
-We are actively iterating on these architectural problems and welcome community input:
+No security system can prevent 100% of attacks on fully compromised infrastructure — and SAIP does not claim otherwise. What SAIP is designed to do is **minimize blast radius** and **accelerate revocation** when a compromise occurs.
 
-1. **The Trusted Authority Model** — How do we decentralize vendor registration so no single entity controls the internet's "identity switch"?
-2. **Privacy vs. Accountability** — Can we use **Zero-Knowledge Proofs (ZKP)** to prove an agent is "Certified" without revealing the unique `InstanceID` to every website?
-3. **Hardware Attestation** — Binding the `MasterKey` to the machine's **TPM (Trusted Platform Module)** so the identity cannot be exported or cloned.
+> *"SAIP is designed to limit the damage and speed up the response — not to prevent all attacks on compromised infrastructure."*
+
+### Layered Defenses
+
+**Hardware-Backed Keys (strongest)**
+The Master Key and rolling key derivation should be anchored in hardware wherever possible:
+- **TPM 2.0** (Windows/Linux servers)
+- **Apple Secure Enclave** (macOS/iOS agents)
+- **Android StrongBox** (mobile agents)
+- **HSM** (Hardware Security Module, for high-value deployments)
+
+The Rolling Key is never stored in plain text — it is derived on-the-fly and destroyed immediately after use. The Instance ID can be bound to hardware (e.g. TPM endorsement key or CPU ID + vendor certificate), making it non-exportable.
+
+**Short-Lived / One-Time Rolling Keys**
+Each Rolling Key is valid for a single request or a short time window only. After every successful request, the agent derives the next key and destroys the previous one immediately. This minimizes the value of any stolen key material.
+
+**Remote Attestation**
+Agents can optionally prove they are running in a clean, unmodified environment via TPM quote, Intel SGX/TDX attestation, or similar. Servers or REs may require attestation for high-trust tiers.
+
+**Fast Revocation**
+Each vendor (or RE) maintains a revocation mechanism for specific Instance IDs — analogous to OCSP/CRL but optimized for speed with local caching. When a compromise is detected:
+- The vendor revokes the specific Instance ID
+- Revocation is propagated to all active REs
+- Other instances of the same vendor continue operating normally — zero collateral damage
+
+**Anomaly Reporting**
+Servers are encouraged to report suspicious behavior (unexpected nonce patterns, geographic jumps, abnormal request rates) back to the vendor or RE. Early detection enables early revocation.
+
+### Defense Summary
+
+| Threat | Mitigation |
+|--------|------------|
+| Stolen Instance Key | Short-lived RKDF keys — stolen key expires almost immediately |
+| Cloned Instance ID | TPM/hardware binding — ID cannot be exported |
+| Compromised server | Fast revocation — only that instance is affected |
+| Replay attack | Nonce + timestamp window (±300s) |
+| Undetected abuse | Anomaly reporting to vendor/RE |
 
 ---
 
-## 16. Roadmap & IETF Goals
+## 16. Registration Entity Governance
+
+The set of Registration Entities (REs) is the trust anchor of the SAIP ecosystem. Its governance model is therefore the most sensitive architectural decision in the entire protocol.
+
+> **"No single entity — regardless of market size or position — controls the set of Registration Entities."**
+
+### Core Principles
+
+- **No central owner.** The RE list is maintained collectively, through consensus among existing REs.
+- **Criteria-based, not name-based.** Any organization that meets the RE criteria may become a Registration Entity. No single category of organization has preferential status.
+- **Open and auditable.** All RE membership changes are publicly logged and verifiable.
+
+### RE Eligibility Criteria
+
+An organization qualifies as a Registration Entity if it demonstrates:
+
+- **Global infrastructure** — ability to serve RE queries reliably at internet scale
+- **Operational track record** — demonstrated history of running critical internet infrastructure
+- **Neutrality commitment** — agreement not to use RE status to discriminate against vendors or agents
+- **Community approval** — majority consensus vote from existing active REs
+
+### RE Categories (illustrative, not exhaustive)
+
+**Infrastructure operators** — organizations already running global-scale internet infrastructure (CDN, cloud, DNS, transit) are natural candidates due to their existing reach and operational experience.
+
+**Regional Internet Registries** — RIPE NCC, ARIN, APNIC, LACNIC, AFRINIC. Fully non-profit, geographically distributed, and operationally neutral by design. Ideal anchor institutions for the initial bootstrap.
+
+**Academic and neutral institutions** — Internet Society (ISOC), ICANN, and major research universities (e.g. MIT, ETH Zurich, CAIDA). Provide independent, non-commercial representation.
+
+**National / regional operators** — National CERTs, ccTLD operators, and regional network operators. Ensure geographic diversity and prevent over-concentration in any single region.
+
+### Bootstrap & Evolution
+
+The initial seed list of REs is defined in the specification — similar to DNS root hints. It starts small (5–9 organizations across the categories above) and grows through the consensus process.
+
+- A new RE is added when a **majority of existing REs** approve its application via signed statements.
+- An RE is removed if it fails reliability thresholds or violates neutrality commitments — automatically or by majority vote.
+- **Dynamic balancing:** The top 5–7 most active REs are primary replicators at any time. The system self-balances as the ecosystem evolves.
+- Any entity can participate **without any registry** via the stateless `pk=` mode — solving the chicken-and-egg bootstrapping problem for early adopters.
+
+### Vendor Registration
+
+Vendors register their agents with **any RE of their choice** — similar to how domain owners today choose their certificate authority. Servers are free to configure which REs they trust, enabling a competitive and open marketplace of trust.
+
+---
+
+## 17. Open Challenges — Join the Discussion
+
+We are actively iterating on these architectural problems and welcome community input:
+
+1. **RE Governance details** — Exact consensus protocol for adding/removing REs, and how to handle RE disputes.
+2. **Privacy vs. Accountability** — Can we use **Zero-Knowledge Proofs (ZKP)** to prove an agent is "Certified" without revealing the unique `InstanceID` to every server?
+3. **Hardware Attestation** — Standardizing TPM/HSM binding across different platforms and operating systems.
+4. **Revocation propagation speed** — What is an acceptable revocation latency, and how do we minimize it across a distributed RE network?
+
+---
+
+## 18. Roadmap & IETF Goals
 
 | Phase   | Description                                                            | Status          |
 |---------|------------------------------------------------------------------------|-----------------|
@@ -408,11 +499,11 @@ IANA Registration requested for `SAIP` HTTP header field.
 
 ---
 
-## 17. Conclusion
+## 19. Conclusion
 
 SAIP does not enforce trust — **it enables it**.
 
-By providing a verifiable identity signal, SAIP allows servers to reward legitimate agents with preferential handling, effectively increasing the economic cost of abuse and impersonation. It is a lightweight, KISS-compliant, protocol-agnostic layer that complements — never replaces — existing standards (OAuth2, JWT, TLS, SPF/DKIM/DMARC, RFC 9421).
+By providing a verifiable identity signal at three levels of granularity (vendor, bot type, instance), SAIP allows servers to reward legitimate agents with preferential handling and act with surgical precision when abuse occurs — without collateral damage. It is a lightweight, KISS-compliant, protocol-agnostic layer that complements — never replaces — existing standards (OAuth2, JWT, TLS, SPF/DKIM/DMARC, RFC 9421).
 
 The modern web is flooded with automated agents. It is time they had a passport.
 
