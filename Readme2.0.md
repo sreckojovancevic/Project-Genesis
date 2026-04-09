@@ -624,7 +624,147 @@ Vendors register their agents with **any RE of their choice** — similar to how
 
 ---
 
-## 17. Open Challenges — Join the Discussion
+## 17. Opt-In Telemetry — The `tm=` Field
+
+### Design Philosophy: Identification vs. Authorization
+
+SAIP is strictly an **identification protocol**, not an authorization framework. It proves **who** an agent is — not what it is allowed to do. Authorization, access control, and permissioning remain the responsibility of existing application-layer mechanisms (OAuth2, JWT, ACLs, etc.).
+
+> SAIP is the **Passport** — it proves the bearer's identity.
+> The application decides if that bearer has the **Visa** to enter.
+
+### The Problem Telemetry Solves
+
+A verified identity tells you *who* is knocking. But in operational reality — especially during incident response — you also need to know *where*, *in what state*, and *from what environment*. Without context, identity alone is incomplete.
+
+SAIP addresses this with an optional `tm=` field — a single, compact addition to the existing header that carries cryptographically bound operational metadata.
+
+### How It Works — Commitment-Based Model
+
+Instead of transmitting raw metadata (GeoIP, ASN, hardware status, firmware version, GPS), the client generates a **Telemetry Commitment Hash**:
+
+```
+tm = HMAC_SHA256(RollingKey, Metadata_String)
+```
+
+The full header becomes:
+
+```
+SAIP: id="Agent_BG_77"; alg="ed25519"; ts="1744101234"; nonce="7f3k9p2m"; tm="<hash>"; sig="<sig>"
+```
+
+The `tm=` value is a fixed-length hash — compact, opaque, and kryptographically bound to the same Rolling Key that signs the request.
+
+### Properties
+
+| Property | Plain Text Telemetry | SAIP `tm=` Hashed Telemetry |
+|----------|---------------------|------------------------------|
+| Bandwidth | High (long strings) | Minimal (fixed hash length) |
+| Privacy | Anyone can read it | Opaque in transport |
+| Tamper resistance | Easy to fake | Cryptographically bound |
+| Reveal mechanism | Always visible | On-demand, authorized only |
+| KISS factor | Medium | High — one new field |
+
+### Reveal & Audit-on-Demand
+
+Servers store the `tm=` value in their logs alongside the full SAIP header. The raw metadata never travels in the header itself.
+
+During **incident response or audit**:
+
+1. The operator requests the raw metadata from the client or RE audit log.
+2. The system recomputes `HMAC_SHA256(RollingKey, Metadata_String)`.
+3. If it matches the stored `tm=` — the metadata is authenticated. Tamper-proof, timestamped, cryptographically bound.
+
+Only entities possessing the Master Key or authorized RE Audit Nodes can perform the reveal. No one else sees the metadata — not even the endpoint server, unless it requests it explicitly.
+
+### What Metadata Can `tm=` Cover
+
+The content of `Metadata_String` is deployment-defined and opt-in. Common fields:
+
+- `ip` / `geo` / `asn` — network source context
+- `attestation` — TPM/hardware attestation status
+- `fw_version` — firmware or software version
+- `gps` — physical location (IoT devices)
+- `session_info` — session type, environment tag
+- `api_key_hash` — binding to an API credential
+
+No telemetry is transmitted unless explicitly enabled by the participating implementation. This is **Privacy by Design** — the protocol carries no metadata by default.
+
+---
+
+## 18. Use Cases
+
+### Primary Use Case: IoT — The Washing Machine
+
+IoT is where SAIP's full capability stack comes together most clearly. Consider a home appliance manufacturer:
+
+```
+Gorenje (Vendor)
+  └── Washing Machines (Bot Type / Product Line)
+        └── WM-BG-4471 (Instance — TPM chip bound)
+        └── WM-NS-1823 (Instance — TPM chip bound)
+        └── WM-LJ-0392 (Instance — TPM chip bound)
+```
+
+**Today (without SAIP):**
+```
+Washing machine → Cloud → "I am Gorenje WM-1234"
+                  Server: "OK, I'll take your word for it."
+```
+
+**With SAIP:**
+```
+Washing machine → Cloud → SAIP header signed by on-device TPM chip
+                  Server: "Verified original Gorenje instance #WM-BG-4471
+                           Attestation: trusted | FW: 2.1.4 | ASN: 31042"
+```
+
+**What SAIP gives IoT manufacturers:**
+
+- **Firmware spoofing prevention** — an attacker cannot impersonate a device without access to its TPM chip. Knowing the Vendor ID and model is not enough.
+- **Surgical fleet management** — if 1,000 devices receive a malicious update, the vendor revokes only those Instance IDs. The rest of the fleet continues operating. Today, the only option is to shut down the entire cloud service.
+- **Anti-counterfeit protection** — a counterfeit device cannot obtain SAIP verification because it has no original TPM with the Gorenje Master Key derivation. This is an anti-counterfeiting mechanism built into the identity layer.
+- **Regulatory compliance** — the EU Cyber Resilience Act (CRA) and similar regulations increasingly require verifiable device identity. SAIP is a natural, lightweight answer.
+- **Telemetry via `tm=`** — GPS location, firmware version, attestation status — all hashed, private in transport, reveal-on-demand for audit.
+
+---
+
+### Secondary Use Cases
+
+**Backup Agent**
+```
+Vendor: AcmeCorp
+Instance: backup-agent-server-42
+tm= includes: OS version, disk health, datacenter ASN
+```
+If the agent starts behaving anomalously (geolocation jump, unusual request pattern), the server detects it via telemetry mismatch — even if the cryptographic signature is still valid.
+
+**API Credential Binding**
+```
+SAIP Instance ID + API Key = two-factor API protection
+```
+Even if an API key is stolen, it is useless without the hardware-bound SAIP identity (TPM/HSM) associated with that key. Credential replay attacks become structurally impossible.
+
+**AI Bot / Crawler**
+```
+Vendor: OpenAI
+Bot Type: GPTBot
+Instance: crawler-node-us-east-14
+tm= includes: model version, datacenter ASN, crawl policy version
+```
+Publishers can apply precise per-instance rate limits and audit exactly which crawler instance touched which resource — without relying on IP addresses or User-Agent strings.
+
+**SMTP Server**
+```
+Vendor: Company mail infrastructure
+Instance: mail-relay-bg-01
+tm= includes: MTA version, datacenter info, SPF alignment status
+```
+Early EHLO-phase verification + telemetry gives receiving servers full context before accepting a single byte of message data.
+
+---
+
+## 19. Open Challenges — Join the Discussion
 
 We are actively iterating on these architectural problems and welcome community input:
 
@@ -632,10 +772,11 @@ We are actively iterating on these architectural problems and welcome community 
 2. **Privacy vs. Accountability** — Can we use **Zero-Knowledge Proofs (ZKP)** to prove an agent is "Certified" without revealing the unique `InstanceID` to every server?
 3. **Hardware Attestation** — Standardizing TPM/HSM binding across different platforms and operating systems.
 4. **Revocation propagation speed** — What is an acceptable revocation latency, and how do we minimize it across a distributed RE network?
+5. **`tm=` Metadata Schema** — Defining a standard set of telemetry field names for interoperability across deployments.
 
 ---
 
-## 18. Roadmap & IETF Goals
+## 20. Roadmap & IETF Goals
 
 | Phase   | Description                                                            | Status          |
 |---------|------------------------------------------------------------------------|-----------------|
@@ -649,11 +790,11 @@ IANA Registration requested for `SAIP` HTTP header field.
 
 ---
 
-## 19. Conclusion
+## 21. Conclusion
 
 SAIP does not enforce trust — **it enables it**.
 
-By providing a verifiable identity signal at three levels of granularity (vendor, bot type, instance), SAIP allows servers to reward legitimate agents with preferential handling and act with surgical precision when abuse occurs — without collateral damage. It is a lightweight, KISS-compliant, protocol-agnostic layer that complements — never replaces — existing standards (OAuth2, JWT, TLS, SPF/DKIM/DMARC, RFC 9421).
+By providing a verifiable identity signal at three levels of granularity (vendor, bot type, instance), combined with opt-in hashed telemetry, SAIP allows servers to reward legitimate agents with preferential handling and act with surgical precision when abuse occurs — without collateral damage. It is a lightweight, KISS-compliant, protocol-agnostic layer that complements — never replaces — existing standards (OAuth2, JWT, TLS, SPF/DKIM/DMARC, RFC 9421).
 
 The modern web is flooded with automated agents. It is time they had a passport.
 
